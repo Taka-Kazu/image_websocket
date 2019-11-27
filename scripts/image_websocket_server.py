@@ -81,15 +81,26 @@ def listener():
     rospy.spin()
     print("killed ros")
 
-if __name__ == '__main__':
-    rospy.init_node('listener', anonymous=True)
+def main():
+    rospy.init_node('listener', anonymous=True, disable_signals=True)
 
     t = Thread(target = listener)
-    # t.start()
+    t.setDaemon(True)
+    t.start()
+
     application = tornado.web.Application([
         (r"/", MainHandler),
         (r"/image", WSHandler)
     ])
     application.listen(8080)
+    print("waiting for connection from client...")
     tornado.ioloop.IOLoop.instance().start()
-    rospy.shutdown()
+
+    rospy.signal_shutdown("end")
+    print("end")
+
+if __name__ == '__main__':
+    try:
+        main()
+    except:
+        print("killed by Ctrl-C")
