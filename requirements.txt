@@ -1,0 +1,6 @@
+opencv-python
+numpy
+pillow
+websockets
+roslibpy
+service_identity
