@@ -6,6 +6,7 @@ import time
 import cv2
 import numpy as np
 from PIL import Image as PILImage
+import base64
 
 import tornado.ioloop
 import tornado.web
@@ -22,8 +23,11 @@ else:
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import String
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
 
 sending_data = ""
+sending_dict = dict()
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -47,8 +51,8 @@ class WSHandler(tornado.websocket.WebSocketHandler):
             time.sleep(1)
         print("thread is dead")
         t.join()
-        tornado.ioloop.IOLoop.instance().stop()
-        self.state = False
+        # tornado.ioloop.IOLoop.instance().stop()
+        # self.state = False
 
     def loop(self):
         print("loop start")
@@ -56,9 +60,10 @@ class WSHandler(tornado.websocket.WebSocketHandler):
             global sending_data
             self.value += 1
             print(self.value)
-            # self.write_message(str(self.value))
-            self.write_message(sending_data + str(self.value))
-            time.sleep(1)
+            # self.write_message(sending_data + str(self.value))
+            self.write_message(sending_dict)
+            # self.write(sending_dict)
+            time.sleep(0.1)
         print("loop end")
 
     def on_close(self):
@@ -76,8 +81,23 @@ def callback(data):
     rospy.loginfo(rospy.get_caller_id()+"I heard %s",data.data)
     sending_data = data.data
 
+def image_callback(data):
+    global sending_dict
+    # print("image received")
+    try:
+        cv_image = CvBridge().imgmsg_to_cv2(data, "bgr8")
+        result, bin_image = cv2.imencode('.jpg', cv_image)
+        bin_image64 = base64.b64encode(bin_image)
+        # print(bin_image64)
+        sending_dict['image'] = bin_image64
+        cv2.imshow("image", cv_image)
+        cv2.waitKey(1)
+    except CvBridgeError as e:
+        print(e)
+
 def listener():
     rospy.Subscriber("chatter", String, callback)
+    rospy.Subscriber("/usb_cam/image_raw", Image, image_callback)
     rospy.spin()
     print("killed ros")
 
